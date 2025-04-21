@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  app:
+    restart: unless-stopped
+    command: /bin/sh -c "./main migrate && ./main serve"
+    build: ./
+    depends_on:
+      - postgres
+    ports: 
+      - 8080:8080
+    networks:
+      - backend
+
+  postgres: 
+    restart: unless-stopped
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: medods
+    ports:
+      - 5432:5432
+    networks:
+      - backend
+  
+networks:
+  backend:
