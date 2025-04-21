@@ -1,10 +1,10 @@
 package handlers
 
-
 import (
 	httper "medods/http"
 	"medods/services"
 	"medods/utils"
+	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -26,16 +26,24 @@ func login(h httper.Helper) (any, error) {
 		return nil, err
 	}
 
+	http.SetCookie(h.W, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    refresh,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	})
+
 	return map[string]string{"access_token": access, "refresh_token": refresh}, nil
 }
 
 func refresh(h httper.Helper) (any, error) {
-	token, err := h.GetQueryParamAsString("token")
+	token, err := h.R.Cookie("refresh_token")
 	if err != nil {
 		return nil, err
 	}
 
-	claims, err := utils.VerificationToken(token)
+	claims, err := utils.VerificationToken(token.Value)
 	if err != nil {
 		return nil, err
 	}
@@ -44,10 +52,18 @@ func refresh(h httper.Helper) (any, error) {
 		return nil, httper.NewHttpErrorBadRequest("refresh token expired")
 	}
 
-	access, refresh, err := h.Service.(services.AuthService).TryRefreshToken(token, claims["uuid"].(string))
+	access, refresh, err := h.Service.(services.AuthService).TryRefreshToken(token.Value, claims["uuid"].(string))
 	if err != nil {
 		return nil, err
 	}
+
+	http.SetCookie(h.W, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    refresh,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteStrictMode,
+	})
 
 	return map[string]string{"access_token": access, "refresh_token": refresh}, nil
 }
